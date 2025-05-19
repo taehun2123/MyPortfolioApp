@@ -3,6 +3,7 @@ import { db } from '../services/firebase';
 import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { Project, ProjectResponse } from '../types';
 import { sampleProjects } from '../utils/sampleData';
+import { cleanObjectForFirestore } from '../utils/firebaseHelpers';
 
 /**
  * 프로젝트 데이터를 관리하는 커스텀 훅
@@ -40,45 +41,58 @@ export function useProjects() {
     fetchProjects();
   }, []);
 
-  // 프로젝트 추가
-  const addProject = async (newProject: Omit<Project, 'id'>): Promise<ProjectResponse> => {
-    try {
-      const docRef = await addDoc(collection(db, 'projects'), {
-        ...newProject,
-        order: projects.length
-      });
-      
-      const addedProject: Project = { 
-        id: docRef.id, 
-        ...newProject, 
-        order: projects.length 
-      };
-      
-      setProjects([...projects, addedProject]);
-      return { success: true, project: addedProject };
-    } catch (err: any) {
-      console.error('프로젝트 추가 오류:', err);
-      setError('프로젝트 추가 중 오류가 발생했습니다.');
-      return { success: false, error: err.message };
+ // 프로젝트 추가
+const addProject = async (newProject: Omit<Project, 'id'>): Promise<ProjectResponse> => {
+  try {
+    if (!db) {
+      throw new Error('Firestore is not initialized');
     }
-  };
-  
-  // 프로젝트 수정
-  const updateProject = async (updatedProject: Project): Promise<ProjectResponse> => {
-    try {
-      await updateDoc(doc(db, 'projects', updatedProject.id), { ...updatedProject });
-      
-      setProjects(projects.map(p => 
-        p.id === updatedProject.id ? updatedProject : p
-      ));
-      return { success: true, project: updatedProject };
-    } catch (err: any) {
-      console.error('프로젝트 수정 오류:', err);
-      setError('프로젝트 수정 중 오류가 발생했습니다.');
-      return { success: false, error: err.message };
+
+    // 저장 전 데이터 정리 (빈 필드 제거)
+    const cleanedProject = cleanObjectForFirestore({
+      ...newProject,
+      order: projects.length
+    });
+
+    const docRef = await addDoc(collection(db, 'projects'), cleanedProject);
+    
+    const addedProject: Project = { 
+      id: docRef.id, 
+      ...newProject, 
+      order: projects.length 
+    };
+    
+    setProjects([...projects, addedProject]);
+    return { success: true, project: addedProject };
+  } catch (err: any) {
+    console.error('프로젝트 추가 오류:', err);
+    setError('프로젝트 추가 중 오류가 발생했습니다.');
+    return { success: false, error: err.message };
+  }
+};
+
+// updateProject 함수도 수정
+const updateProject = async (updatedProject: Project): Promise<ProjectResponse> => {
+  try {
+    if (!db) {
+      throw new Error('Firestore is not initialized');
     }
-  };
-  
+
+    // 저장 전 데이터 정리 (빈 필드 제거)
+    const cleanedProject = cleanObjectForFirestore(updatedProject);
+    
+    await updateDoc(doc(db, 'projects', updatedProject.id), cleanedProject);
+    
+    setProjects(projects.map(p => 
+      p.id === updatedProject.id ? updatedProject : p
+    ));
+    return { success: true, project: updatedProject };
+  } catch (err: any) {
+    console.error('프로젝트 수정 오류:', err);
+    setError('프로젝트 수정 중 오류가 발생했습니다.');
+    return { success: false, error: err.message };
+  }
+};
   // 프로젝트 삭제
   const deleteProject = async (projectId: string): Promise<ProjectResponse> => {
     try {
