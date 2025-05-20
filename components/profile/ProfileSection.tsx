@@ -1,4 +1,4 @@
-// components/portfolio/ProfileSection.tsx (수정)
+// components/profile/ProfileSection.tsx 수정본 - 단일 프로필 이미지 사용
 import { Profile } from '@/types';
 import { getAnimationConfig } from '@/utils/styleUtils';
 import { Feather } from '@expo/vector-icons';
@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { useProfile } from '../../hooks/useProfile';
 import LoadingIndicator from '../common/LoadingIndicator';
-import ProfileEditModal from '../profile/ProfileEditModal';
 import ProfileLink from '../profile/ProfileLink';
-import ImageWithFallback from '../shared/ImageWithFallback';
+import ProfileImage from '../shared/ProfileImage';
+import ProfileEditModal from './ProfileEditModal';
 
 interface ProfileSectionProps {
   onNext: () => void;
@@ -34,25 +34,24 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [bounceAnimation] = useState(new Animated.Value(0));
   
-  // 애니메이션 설정 - useNativeDriver 문제 해결
+  // 애니메이션 설정
   React.useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(bounceAnimation, {
           toValue: 1,
           duration: 800,
-          ...getAnimationConfig() // 플랫폼에 맞는 애니메이션 설정
+          ...getAnimationConfig()
         }),
         Animated.timing(bounceAnimation, {
           toValue: 0,
           duration: 800,
-          ...getAnimationConfig() // 플랫폼에 맞는 애니메이션 설정
+          ...getAnimationConfig()
         }),
       ])
     ).start();
   }, [bounceAnimation]);
 
-  
   const bounceInterpolation = bounceAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 10],
@@ -115,11 +114,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         <View style={styles.profileContainer}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatarBorder}>
-              <ImageWithFallback 
-                source={profile.profileImage ? { uri: profile.profileImage } : undefined}
-                style={styles.avatar}
-                fallbackText="프로필 이미지"
-              />
+              {/* 단일 프로필 이미지 컴포넌트 사용 */}
+              <ProfileImage style={styles.avatar} />
             </View>
           </View>
           
@@ -262,8 +258,8 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
-    paddingTop: 100, // 관리자 버튼 공간 확보
-    paddingBottom: 100, // 하단 버튼 공간 확보
+    paddingTop: 100,
+    paddingBottom: 100,
     paddingHorizontal: 20,
     justifyContent: 'center',
   },
@@ -290,7 +286,6 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: 85,
-    borderWidth: 3,
     borderColor: 'white',
   },
   infoContainer: {

@@ -1,9 +1,7 @@
+// components/profile/ProfileEditModal.tsx 수정본 - 이미지 업로드 제거
 import { Feather } from '@expo/vector-icons';
 import React, { useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -17,8 +15,8 @@ import {
   View
 } from 'react-native';
 import { Profile } from '../../types';
-import { deleteImageFromStorage, isFirebaseStorageUrl, pickImage, uploadImageToStorage } from '../../utils/imageUtils';
 import ArrayFieldInput from '../common/ArrayFieldInput';
+import ProfileImage from '../shared/ProfileImage';
 
 // 포커스 가능한 텍스트 입력 컴포넌트 추가
 interface FocusableInputProps {
@@ -81,7 +79,6 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     skills: [],
     links: { github: '', blog: '', email: '' }
   });
-  const [isUploading, setIsUploading] = useState<boolean>(false);
   
   // 폼 데이터 변경 핸들러
   const handleChange = (field: keyof Profile, value: any) => {
@@ -121,34 +118,6 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     }
   };
   
-  // 이미지 선택 및 업로드 핸들러
-  const handleImagePick = async () => {
-    try {
-      const imageAsset = await pickImage();
-      if (!imageAsset) return;
-      
-      setIsUploading(true);
-      
-      // 기존 이미지가 Firebase Storage에 있는 경우, 삭제
-      if (formData.profileImage && isFirebaseStorageUrl(formData.profileImage)) {
-        await deleteImageFromStorage(formData.profileImage);
-      }
-      
-      // 새 이미지 업로드
-      const downloadUrl = await uploadImageToStorage(imageAsset.uri, 'profiles');
-      if (downloadUrl) {
-        handleChange('profileImage', downloadUrl);
-      } else {
-        Alert.alert('업로드 실패', '이미지 업로드에 실패했습니다. 다시 시도해주세요.');
-      }
-    } catch (error) {
-      console.error('이미지 업로드 오류:', error);
-      Alert.alert('오류', '이미지 처리 중 오류가 발생했습니다.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-  
   // 폼 제출 핸들러
   const handleSubmit = () => {
     // 필수 필드 확인 및 기본값 설정
@@ -157,7 +126,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       title: formData.title || '',
       bio: formData.bio || '',
       skills: formData.skills || [],
-      profileImage: formData.profileImage || '',
+      profileImage: '', // 프로필 이미지는 항상 빈 값(에셋 이미지 사용)
       links: {
         github: formData.links?.github || '',
         blog: formData.links?.blog || '',
@@ -238,53 +207,9 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                   
                   <View style={styles.formGroup}>
                     <Text style={styles.label}>프로필 사진</Text>
-                    
-                    <View style={styles.imageUploadContainer}>
-                      <View style={styles.previewContainer}>
-                        {formData.profileImage ? (
-                          <Image 
-                            source={{ uri: formData.profileImage }}
-                            style={styles.imagePreview}
-                            onError={() => handleChange('profileImage', '')}
-                          />
-                        ) : (
-                          <View style={styles.emptyImagePreview}>
-                            <Text>
-                              <Feather name="user" size={40} color="#9ca3af" />
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      
-                      <View style={styles.imageButtonsContainer}>
-                        <TouchableOpacity 
-                          style={styles.imageButton}
-                          onPress={handleImagePick}
-                          disabled={isUploading}
-                        >
-                          {isUploading ? (
-                            <ActivityIndicator size="small" color="#3b82f6" />
-                          ) : (
-                            <View style={styles.buttonContent}>
-                              <Feather name="upload" size={16} color="#3b82f6" />
-                              <Text style={styles.imageButtonText}>이미지 업로드</Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                        
-                        {formData.profileImage && (
-                          <TouchableOpacity 
-                            style={[styles.imageButton, styles.deleteButton]}
-                            onPress={() => handleChange('profileImage', '')}
-                            disabled={isUploading}
-                          >
-                            <View style={styles.buttonContent}>
-                              <Feather name="trash-2" size={16} color="#ef4444" />
-                              <Text style={[styles.imageButtonText, styles.deleteButtonText]}>이미지 삭제</Text>
-                            </View>
-                          </TouchableOpacity>
-                        )}
-                      </View>
+                    <View style={styles.profileImageContainer}>
+                      <ProfileImage style={styles.profileImagePreview} />
+                      <Text style={styles.profileImageText}>프로필 이미지는 앱에 내장된 이미지를 사용합니다.</Text>
                     </View>
                   </View>
                   
@@ -342,7 +267,6 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                     <TouchableOpacity 
                       style={styles.submitButton}
                       onPress={handleSubmit}
-                      disabled={isUploading}
                     >
                       <Text style={styles.submitButtonText}>저장</Text>
                     </TouchableOpacity>
@@ -442,61 +366,21 @@ const styles = StyleSheet.create({
   linkContainer: {
     marginBottom: 12,
   },
-  imageUploadContainer: {
-    flexDirection: 'row',
+  profileImageContainer: {
     alignItems: 'center',
     marginTop: 8,
   },
-  previewContainer: {
-    marginRight: 16,
-  },
-  imagePreview: {
+  profileImagePreview: {
     width: 100,
     height: 100,
     borderRadius: 50,
     backgroundColor: '#f3f4f6',
+    marginBottom: 12,
   },
-  emptyImagePreview: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderStyle: 'dashed',
-  },
-  imageButtonsContainer: {
-    flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'center',
-  },
-  imageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  imageButtonText: {
-    marginLeft: 6,
+  profileImageText: {
     fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
-  },
-  deleteButton: {
-    backgroundColor: '#fee2e2',
-    marginBottom: 0,
-  },
-  deleteButtonText: {
-    color: '#ef4444',
+    color: '#6b7280',
+    textAlign: 'center',
   },
   actionButtons: {
     flexDirection: 'row',

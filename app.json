@@ -24,6 +24,30 @@
       "favicon": "./assets/images/favicon.png",
       "corsProxy": {
         "domains": ["firebasestorage.googleapis.com"]
+      },
+      "meta": {
+        "title": "개발자 김태훈",
+        "viewport": "width=device-width, initial-scale=1",
+        "appleMobileWebAppCapable": "yes",
+        "appleMobileWebAppStatusBarStyle": "black-translucent",
+        "appleMobileWebAppTitle": "개발자 김태훈",
+        "description": "개발자 김태훈의 포트폴리오",
+        "keywords": "개발자, 포트폴리오, 김태훈",
+        "author": "김태훈",
+        "ogType": "website",
+        "ogSiteName": "개발자 김태훈",
+        "ogTitle": "개발자 김태훈",
+        "ogDescription": "개발자 김태훈의 포트폴리오",
+        "ogImage": "./assets/images/favicon.png",
+        "ogImageWidth": 1200,
+        "ogImageHeight": 630,
+        "ogUrl": "https://devhun.kr",
+        "twitterTitle": "개발자 김태훈",
+        "twitterDescription": "개발자 김태훈의 포트폴리오",
+        "image": "./assets/images/favicon.png",
+        "themeColor": "#3b82f6", 
+        "twitterCard": "summary_large_image", 
+        "twitterCreator": "@taehun2" 
       }
     },
     "plugins": [
