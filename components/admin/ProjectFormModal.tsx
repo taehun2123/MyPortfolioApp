@@ -1,59 +1,30 @@
-import React, { useState, useRef, useCallback, memo } from "react";
-import {
-  Modal,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-} from "react-native";
 import { Feather } from "@expo/vector-icons";
+import React, { memo, useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
+} from "react-native";
+import { ApiItem, Project, Screenshot } from "../../types";
+import { deleteImageFromStorage, isFirebaseStorageUrl } from "../../utils/imageUtils";
 import ArrayFieldInput from "../common/ArrayFieldInput";
-import { Project, ApiItem, Screenshot } from "../../types";
 
-// 포커스 가능한 텍스트 입력 컴포넌트
-interface FocusableTextInputProps {
-  value: string;
-  onChangeText: (text: string) => void;
-  style?: object;
-  [key: string]: any;
-}
-
-const FocusableTextInput = memo<FocusableTextInputProps>(
-  ({ value, onChangeText, style, ...props }) => {
-    const inputRef = useRef<TextInput>(null);
-
-    // 입력창 클릭 핸들러
-    const handlePress = useCallback(() => {
-      inputRef.current?.focus();
-    }, []);
-
-    return (
-      <TouchableWithoutFeedback onPress={handlePress}>
-        <View style={{ flex: 1 }}>
-          <TextInput
-            ref={inputRef}
-            value={value}
-            onChangeText={onChangeText}
-            style={[
-              styles.input,
-              Platform.OS === "web" && styles.webInput,
-              style,
-            ]}
-            {...props}
-          />
-        </View>
-      </TouchableWithoutFeedback>
-    );
-  }
-);
-
-FocusableTextInput.displayName = "FocusableTextInput";
+// 폼 컴포넌트 임포트
+import ApiSection from "./form/ApiSection";
+import FocusableTextInput from "./form/FocusableTextInput";
+import FormActions from "./form/FormActions";
+import FormField from "./form/FormField";
+import FormSection from "./form/FormSection";
+import ImageUpload from "./form/ImageUpload";
+import ScreenshotFormItem from "./form/ScreenshotFormItem";
 
 interface ProjectFormModalProps {
   visible: boolean;
@@ -71,7 +42,49 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
   onSubmit,
   onClose,
 }) => {
-  const [formData, setFormData] = useState<any>(project);
+  // 불완전한 프로젝트 객체를 완전하게 만들기
+  const initialProject = {
+    ...project, // 기존 프로젝트 데이터로 덮어쓰기
+    title: '',
+    techStack: {
+      fieldSkill: [],
+      server: [],
+      os: [],
+      collaboration: [],
+      tools: [],
+      db: []
+    },
+    contribution: {
+      intro: '',
+      period: '',
+      members: '',
+      keyFeatures: [],
+      teamAchievement: '',
+      role: {
+        summary: '',
+        details: []
+      }
+    },
+    apiDesign: {
+      auth: [],
+      data: []
+    },
+    screenshots: [],
+    architecture: {
+      image: '',
+      description: ''
+    }
+  };
+
+  const [formData, setFormData] = useState<any>(initialProject);
+  const [uploadingImages, setUploadingImages] = useState<boolean>(false);
+
+  // 모달이 열릴 때마다 폼 데이터 초기화
+  useEffect(() => {
+    if (visible) {
+      setFormData(initialProject);
+    }
+  }, [visible, project]);
 
   // 모달 내부 클릭 처리
   const handleModalPress = useCallback((e: { stopPropagation: () => void; }) => {
@@ -86,7 +99,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
         setFormData((prevData: { [x: string]: any; }) => ({
           ...prevData,
           [section]: {
-            ...prevData[section],
+            ...(prevData[section] || {}),
             [field]: value,
           },
         }));
@@ -103,12 +116,12 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
   // 중첩 객체 필드 변경 핸들러
   const handleNestedChange = useCallback(
     (section: string, nestedSection: string, field: string, value: any) => {
-      setFormData((prevData: { [x: string]: { [x: string]: any; }; }) => ({
+      setFormData((prevData: { [x: string]: any; }) => ({
         ...prevData,
         [section]: {
-          ...prevData[section],
+          ...(prevData[section] || {}),
           [nestedSection]: {
-            ...prevData[section]?.[nestedSection],
+            ...((prevData[section] || {})[nestedSection] || {}),
             [field]: value,
           },
         },
@@ -126,7 +139,9 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
       index: number | null,
       value: string
     ) => {
-      const currentArray = section ? formData[section][field] : formData[field];
+      const currentArray = section 
+        ? (formData[section]?.[field] || []) 
+        : (formData[field] || []);
       let newArray;
 
       if (action === "add") {
@@ -162,7 +177,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
       index: number | null,
       value: string
     ) => {
-      const currentArray = formData[section][nestedSection][field];
+      const currentArray = formData[section]?.[nestedSection]?.[field] || [];
       let newArray;
 
       if (action === "add") {
@@ -190,7 +205,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
       field?: string,
       value?: string
     ) => {
-      const currentApis = formData.apiDesign[apiType];
+      const currentApis = formData.apiDesign?.[apiType] || [];
       let newApis;
 
       if (action === "add") {
@@ -221,7 +236,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
   // 스크린샷 항목 핸들러
   const handleScreenshotItem = useCallback(
     (action: string, index: number | null, field?: string, value?: string) => {
-      const currentScreenshots = formData.screenshots;
+      const currentScreenshots = formData.screenshots || [];
       let newScreenshots;
 
       if (action === "add") {
@@ -240,6 +255,13 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
             i === index ? { ...screenshot, [field]: value } : screenshot
         );
       } else if (action === "remove" && index !== null) {
+        // 삭제할 스크린샷 이미지가 Firebase Storage에 있으면 삭제
+        const screenshotToDelete = currentScreenshots[index];
+        if (screenshotToDelete?.image && isFirebaseStorageUrl(screenshotToDelete.image)) {
+          deleteImageFromStorage(screenshotToDelete.image)
+            .catch(err => console.error('스크린샷 이미지 삭제 실패:', err));
+        }
+        
         newScreenshots = currentScreenshots.filter(
           (_: Screenshot, i: number) => i !== index
         );
@@ -252,13 +274,24 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     [formData.screenshots, handleChange]
   );
 
+  // 아키텍처 이미지 변경 핸들러
+  const handleArchitectureImageChange = useCallback((url: string) => {
+    handleNestedChange("architecture", "image", "", url);
+  }, [handleNestedChange]);
+
+  // 스크린샷 이미지 변경 핸들러
+  const handleScreenshotImageChange = useCallback((index: number, url: string) => {
+    handleScreenshotItem("update", index, "image", url);
+  }, [handleScreenshotItem]);
+
   // 폼 제출 핸들러
   const handleSubmit = useCallback(() => {
+    if (uploadingImages) {
+      Alert.alert('이미지 업로드 중', '이미지 업로드가 완료될 때까지 기다려주세요.');
+      return;
+    }
     onSubmit(formData);
-  }, [formData, onSubmit]);
-
-  // API 메서드 선택 옵션
-  const apiMethods = ["GET", "POST", "PUT", "DELETE"];
+  }, [formData, onSubmit, uploadingImages]);
 
   return (
     <Modal
@@ -295,657 +328,207 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                   showsVerticalScrollIndicator={true}
                 >
                   {/* 기본 정보 섹션 */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.sectionTitle}>기본 정보</Text>
-
-                    <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>프로젝트 제목</Text>
+                  <FormSection title="기본 정보">
+                    <FormField label="프로젝트 제목">
                       <FocusableTextInput
                         value={formData.title}
-                        onChangeText={(text) =>
-                          handleChange(null, "title", text)
-                        }
+                        onChangeText={(text) => handleChange(null, "title", text)}
                         placeholder="프로젝트 제목 입력"
                       />
-                    </View>
+                    </FormField>
 
-                    <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>프로젝트 설명</Text>
+                    <FormField label="프로젝트 설명">
                       <FocusableTextInput
                         value={formData.description}
-                        onChangeText={(text) =>
-                          handleChange(null, "description", text)
-                        }
+                        onChangeText={(text) => handleChange(null, "description", text)}
                         placeholder="프로젝트 설명 입력"
                         multiline
                         style={styles.textArea}
                       />
-                    </View>
-                  </View>
+                    </FormField>
+                  </FormSection>
 
                   {/* 기술 스택 섹션 */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.sectionTitle}>기술 스택</Text>
-
+                  <FormSection title="기술 스택">
                     <ArrayFieldInput
                       label="Field Skill"
-                      items={formData.techStack.fieldSkill}
-                      onAdd={(value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "fieldSkill",
-                          "add",
-                          null,
-                          value
-                        )
-                      }
-                      onUpdate={(index, value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "fieldSkill",
-                          "update",
-                          index,
-                          value
-                        )
-                      }
-                      onRemove={(index) =>
-                        handleArrayItem(
-                          "techStack",
-                          "fieldSkill",
-                          "remove",
-                          index,
-                          ""
-                        )
-                      }
+                      items={formData.techStack?.fieldSkill || []}
+                      onAdd={(value) => handleArrayItem("techStack", "fieldSkill", "add", null, value)}
+                      onUpdate={(index, value) => handleArrayItem("techStack", "fieldSkill", "update", index, value)}
+                      onRemove={(index) => handleArrayItem("techStack", "fieldSkill", "remove", index, "")}
                       placeholder="예: React, TypeScript 등"
                     />
 
                     <ArrayFieldInput
                       label="Server/Deployment"
-                      items={formData.techStack.server}
-                      onAdd={(value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "server",
-                          "add",
-                          null,
-                          value
-                        )
-                      }
-                      onUpdate={(index, value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "server",
-                          "update",
-                          index,
-                          value
-                        )
-                      }
-                      onRemove={(index) =>
-                        handleArrayItem(
-                          "techStack",
-                          "server",
-                          "remove",
-                          index,
-                          ""
-                        )
-                      }
+                      items={formData.techStack?.server || []}
+                      onAdd={(value) => handleArrayItem("techStack", "server", "add", null, value)}
+                      onUpdate={(index, value) => handleArrayItem("techStack", "server", "update", index, value)}
+                      onRemove={(index) => handleArrayItem("techStack", "server", "remove", index, "")}
                       placeholder="예: AWS, Docker 등"
                     />
 
                     <ArrayFieldInput
                       label="OS"
-                      items={formData.techStack.os}
-                      onAdd={(value) =>
-                        handleArrayItem("techStack", "os", "add", null, value)
-                      }
-                      onUpdate={(index, value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "os",
-                          "update",
-                          index,
-                          value
-                        )
-                      }
-                      onRemove={(index) =>
-                        handleArrayItem("techStack", "os", "remove", index, "")
-                      }
+                      items={formData.techStack?.os || []}
+                      onAdd={(value) => handleArrayItem("techStack", "os", "add", null, value)}
+                      onUpdate={(index, value) => handleArrayItem("techStack", "os", "update", index, value)}
+                      onRemove={(index) => handleArrayItem("techStack", "os", "remove", index, "")}
                       placeholder="예: Windows, Linux 등"
                     />
 
                     <ArrayFieldInput
                       label="Collaboration"
-                      items={formData.techStack.collaboration}
-                      onAdd={(value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "collaboration",
-                          "add",
-                          null,
-                          value
-                        )
-                      }
-                      onUpdate={(index, value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "collaboration",
-                          "update",
-                          index,
-                          value
-                        )
-                      }
-                      onRemove={(index) =>
-                        handleArrayItem(
-                          "techStack",
-                          "collaboration",
-                          "remove",
-                          index,
-                          ""
-                        )
-                      }
+                      items={formData.techStack?.collaboration || []}
+                      onAdd={(value) => handleArrayItem("techStack", "collaboration", "add", null, value)}
+                      onUpdate={(index, value) => handleArrayItem("techStack", "collaboration", "update", index, value)}
+                      onRemove={(index) => handleArrayItem("techStack", "collaboration", "remove", index, "")}
                       placeholder="예: Git, Jira 등"
                     />
 
                     <ArrayFieldInput
                       label="Tools"
-                      items={formData.techStack.tools}
-                      onAdd={(value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "tools",
-                          "add",
-                          null,
-                          value
-                        )
-                      }
-                      onUpdate={(index, value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "tools",
-                          "update",
-                          index,
-                          value
-                        )
-                      }
-                      onRemove={(index) =>
-                        handleArrayItem(
-                          "techStack",
-                          "tools",
-                          "remove",
-                          index,
-                          ""
-                        )
-                      }
+                      items={formData.techStack?.tools || []}
+                      onAdd={(value) => handleArrayItem("techStack", "tools", "add", null, value)}
+                      onUpdate={(index, value) => handleArrayItem("techStack", "tools", "update", index, value)}
+                      onRemove={(index) => handleArrayItem("techStack", "tools", "remove", index, "")}
                       placeholder="예: VSCode, IntelliJ 등"
                     />
 
                     <ArrayFieldInput
                       label="DB"
-                      items={formData.techStack.db}
-                      onAdd={(value) =>
-                        handleArrayItem("techStack", "db", "add", null, value)
-                      }
-                      onUpdate={(index, value) =>
-                        handleArrayItem(
-                          "techStack",
-                          "db",
-                          "update",
-                          index,
-                          value
-                        )
-                      }
-                      onRemove={(index) =>
-                        handleArrayItem("techStack", "db", "remove", index, "")
-                      }
+                      items={formData.techStack?.db || []}
+                      onAdd={(value) => handleArrayItem("techStack", "db", "add", null, value)}
+                      onUpdate={(index, value) => handleArrayItem("techStack", "db", "update", index, value)}
+                      onRemove={(index) => handleArrayItem("techStack", "db", "remove", index, "")}
                       placeholder="예: MySQL, MongoDB 등"
                     />
-                  </View>
+                  </FormSection>
 
                   {/* 기여 섹션 */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.sectionTitle}>기여</Text>
-
-                    <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>프로젝트 소개</Text>
+                  <FormSection title="기여">
+                    <FormField label="프로젝트 소개">
                       <FocusableTextInput
-                        value={formData.contribution.intro}
-                        onChangeText={(text) =>
-                          handleChange("contribution", "intro", text)
-                        }
+                        value={formData.contribution?.intro || ''}
+                        onChangeText={(text) => handleChange("contribution", "intro", text)}
                         placeholder="프로젝트 소개 입력"
                         multiline
                         style={styles.textArea}
                       />
-                    </View>
+                    </FormField>
 
                     <View style={styles.twoColumnLayout}>
-                      <View style={styles.columnField}>
-                        <Text style={styles.fieldLabel}>기간</Text>
+                      <FormField label="기간" style={styles.columnField}>
                         <FocusableTextInput
-                          value={formData.contribution.period}
-                          onChangeText={(text) =>
-                            handleChange("contribution", "period", text)
-                          }
+                          value={formData.contribution?.period || ''}
+                          onChangeText={(text) => handleChange("contribution", "period", text)}
                           placeholder="예: 2024.01 ~ 2024.03 (3개월)"
                         />
-                      </View>
+                      </FormField>
 
-                      <View style={styles.columnField}>
-                        <Text style={styles.fieldLabel}>인원</Text>
+                      <FormField label="인원" style={styles.columnField}>
                         <FocusableTextInput
-                          value={formData.contribution.members}
-                          onChangeText={(text) =>
-                            handleChange("contribution", "members", text)
-                          }
+                          value={formData.contribution?.members || ''}
+                          onChangeText={(text) => handleChange("contribution", "members", text)}
                           placeholder="예: 프론트엔드 2명, 백엔드 3명"
                         />
-                      </View>
+                      </FormField>
                     </View>
 
                     <ArrayFieldInput
                       label="핵심 기능"
-                      items={formData.contribution.keyFeatures}
-                      onAdd={(value) =>
-                        handleArrayItem(
-                          "contribution",
-                          "keyFeatures",
-                          "add",
-                          null,
-                          value
-                        )
-                      }
-                      onUpdate={(index, value) =>
-                        handleArrayItem(
-                          "contribution",
-                          "keyFeatures",
-                          "update",
-                          index,
-                          value
-                        )
-                      }
-                      onRemove={(index) =>
-                        handleArrayItem(
-                          "contribution",
-                          "keyFeatures",
-                          "remove",
-                          index,
-                          ""
-                        )
-                      }
+                      items={formData.contribution?.keyFeatures || []}
+                      onAdd={(value) => handleArrayItem("contribution", "keyFeatures", "add", null, value)}
+                      onUpdate={(index, value) => handleArrayItem("contribution", "keyFeatures", "update", index, value)}
+                      onRemove={(index) => handleArrayItem("contribution", "keyFeatures", "remove", index, "")}
                       placeholder="핵심 기능 입력"
                       multiline
                     />
 
-                    <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>팀 성과</Text>
+                    <FormField label="팀 성과">
                       <FocusableTextInput
-                        value={formData.contribution.teamAchievement}
-                        onChangeText={(text) =>
-                          handleChange("contribution", "teamAchievement", text)
-                        }
+                        value={formData.contribution?.teamAchievement || ''}
+                        onChangeText={(text) => handleChange("contribution", "teamAchievement", text)}
                         placeholder="팀이 이룬 성과를 작성하세요"
                         multiline
                         style={styles.textArea}
                       />
-                    </View>
+                    </FormField>
 
-                    <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>역할 요약</Text>
+                    <FormField label="역할 요약">
                       <FocusableTextInput
-                        value={formData.contribution.role.summary}
-                        onChangeText={(text) =>
-                          handleNestedChange(
-                            "contribution",
-                            "role",
-                            "summary",
-                            text
-                          )
-                        }
+                        value={formData.contribution?.role?.summary || ''}
+                        onChangeText={(text) => handleNestedChange("contribution", "role", "summary", text)}
                         placeholder="담당한 역할에 대한 요약"
                         multiline
                         style={styles.textArea}
                       />
-                    </View>
+                    </FormField>
 
                     <ArrayFieldInput
                       label="역할 세부 내용"
-                      items={formData.contribution.role.details}
-                      onAdd={(value) =>
-                        handleNestedArrayItem(
-                          "contribution",
-                          "role",
-                          "details",
-                          "add",
-                          null,
-                          value
-                        )
-                      }
-                      onUpdate={(index, value) =>
-                        handleNestedArrayItem(
-                          "contribution",
-                          "role",
-                          "details",
-                          "update",
-                          index,
-                          value
-                        )
-                      }
-                      onRemove={(index) =>
-                        handleNestedArrayItem(
-                          "contribution",
-                          "role",
-                          "details",
-                          "remove",
-                          index,
-                          ""
-                        )
-                      }
+                      items={formData.contribution?.role?.details || []}
+                      onAdd={(value) => handleNestedArrayItem("contribution", "role", "details", "add", null, value)}
+                      onUpdate={(index, value) => handleNestedArrayItem("contribution", "role", "details", "update", index, value)}
+                      onRemove={(index) => handleNestedArrayItem("contribution", "role", "details", "remove", index, "")}
                       placeholder="세부 역할 내용 입력"
                       multiline
                     />
-                  </View>
+                  </FormSection>
 
                   {/* 아키텍처 섹션 */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.sectionTitle}>아키텍처</Text>
-
-                    <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>이미지 URL</Text>
-                      <FocusableTextInput
-                        value={formData.architecture?.image || ""}
-                        onChangeText={(text) =>
-                          handleNestedChange("architecture", "image", "", text)
-                        }
-                        placeholder="아키텍처 이미지 URL 입력"
+                  <FormSection title="아키텍처">
+                    <FormField label="아키텍처 이미지">
+                      <ImageUpload
+                        imageUrl={formData.architecture?.image || ''}
+                        onImageChange={handleArchitectureImageChange}
+                        placeholder="아키텍처 이미지를 업로드하세요"
+                        folderPath="architectures"
                       />
-                    </View>
+                    </FormField>
 
-                    <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>설명</Text>
+                    <FormField label="설명">
                       <FocusableTextInput
-                        value={formData.architecture?.description || ""}
-                        onChangeText={(text) =>
-                          handleNestedChange(
-                            "architecture",
-                            "description",
-                            "",
-                            text
-                          )
-                        }
+                        value={formData.architecture?.description || ''}
+                        onChangeText={(text) => handleNestedChange("architecture", "description", "", text)}
                         placeholder="아키텍처 설명 입력"
+                        multiline
+                        style={styles.textArea}
                       />
-                    </View>
-                  </View>
+                    </FormField>
+                  </FormSection>
 
                   {/* API 설계 섹션 */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.sectionTitle}>API 설계</Text>
+                  <FormSection title="API 설계">
+                    <ApiSection
+                      title="인증 관련 API"
+                      apis={formData.apiDesign?.auth || []}
+                      onAdd={() => handleApiItem("auth", "add", null)}
+                      onUpdate={(index, field, value) => handleApiItem("auth", "update", index, field, value)}
+                      onRemove={(index) => handleApiItem("auth", "remove", index)}
+                    />
 
-                    <View style={styles.apiSection}>
-                      <Text style={styles.subSectionTitle}>인증 관련 API</Text>
-
-                      {formData.apiDesign.auth.map(
-                        (api: ApiItem, index: number) => (
-                          <View
-                            key={`auth-api-${index}`}
-                            style={styles.apiItem}
-                          >
-                            <View style={styles.apiMethodContainer}>
-                              <Text style={styles.fieldLabel}>Method</Text>
-                              <View style={styles.apiMethodButtons}>
-                                {apiMethods.map((method) => (
-                                  <TouchableOpacity
-                                    key={method}
-                                    style={[
-                                      styles.apiMethodButton,
-                                      api.method === method &&
-                                        styles.apiMethodButtonActive,
-                                    ]}
-                                    onPress={() =>
-                                      handleApiItem(
-                                        "auth",
-                                        "update",
-                                        index,
-                                        "method",
-                                        method
-                                      )
-                                    }
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.apiMethodButtonText,
-                                        api.method === method &&
-                                          styles.apiMethodButtonTextActive,
-                                      ]}
-                                    >
-                                      {method}
-                                    </Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </View>
-                            </View>
-
-                            <View style={styles.fieldContainer}>
-                              <Text style={styles.fieldLabel}>Endpoint</Text>
-                              <FocusableTextInput
-                                value={api.endpoint}
-                                onChangeText={(text) =>
-                                  handleApiItem(
-                                    "auth",
-                                    "update",
-                                    index,
-                                    "endpoint",
-                                    text
-                                  )
-                                }
-                                placeholder="/api/auth/..."
-                              />
-                            </View>
-
-                            <View style={styles.fieldContainer}>
-                              <Text style={styles.fieldLabel}>Description</Text>
-                              <FocusableTextInput
-                                value={api.description}
-                                onChangeText={(text) =>
-                                  handleApiItem(
-                                    "auth",
-                                    "update",
-                                    index,
-                                    "description",
-                                    text
-                                  )
-                                }
-                                placeholder="API 설명"
-                              />
-                            </View>
-
-                            <TouchableOpacity
-                              style={styles.removeButton}
-                              onPress={() =>
-                                handleApiItem("auth", "remove", index)
-                              }
-                            >
-                              <Feather
-                                name="trash-2"
-                                size={16}
-                                color="#ef4444"
-                              />
-                            </TouchableOpacity>
-                          </View>
-                        )
-                      )}
-
-                      <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => handleApiItem("auth", "add", null)}
-                      >
-                        <Feather name="plus" size={16} color="#3b82f6" />
-                        <Text style={styles.addButtonText}>인증 API 추가</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.apiSection}>
-                      <Text style={styles.subSectionTitle}>
-                        데이터 관련 API
-                      </Text>
-
-                      {formData.apiDesign.data.map(
-                        (api: ApiItem, index: number) => (
-                          <View
-                            key={`data-api-${index}`}
-                            style={styles.apiItem}
-                          >
-                            <View style={styles.apiMethodContainer}>
-                              <Text style={styles.fieldLabel}>Method</Text>
-                              <View style={styles.apiMethodButtons}>
-                                {apiMethods.map((method) => (
-                                  <TouchableOpacity
-                                    key={method}
-                                    style={[
-                                      styles.apiMethodButton,
-                                      api.method === method &&
-                                        styles.apiMethodButtonActive,
-                                    ]}
-                                    onPress={() =>
-                                      handleApiItem(
-                                        "data",
-                                        "update",
-                                        index,
-                                        "method",
-                                        method
-                                      )
-                                    }
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.apiMethodButtonText,
-                                        api.method === method &&
-                                          styles.apiMethodButtonTextActive,
-                                      ]}
-                                    >
-                                      {method}
-                                    </Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </View>
-                            </View>
-
-                            <View style={styles.fieldContainer}>
-                              <Text style={styles.fieldLabel}>Endpoint</Text>
-                              <FocusableTextInput
-                                value={api.endpoint}
-                                onChangeText={(text) =>
-                                  handleApiItem(
-                                    "data",
-                                    "update",
-                                    index,
-                                    "endpoint",
-                                    text
-                                  )
-                                }
-                                placeholder="/api/data/..."
-                              />
-                            </View>
-
-                            <View style={styles.fieldContainer}>
-                              <Text style={styles.fieldLabel}>Description</Text>
-                              <FocusableTextInput
-                                value={api.description}
-                                onChangeText={(text) =>
-                                  handleApiItem(
-                                    "data",
-                                    "update",
-                                    index,
-                                    "description",
-                                    text
-                                  )
-                                }
-                                placeholder="API 설명"
-                              />
-                            </View>
-
-                            <TouchableOpacity
-                              style={styles.removeButton}
-                              onPress={() =>
-                                handleApiItem("data", "remove", index)
-                              }
-                            >
-                              <Feather
-                                name="trash-2"
-                                size={16}
-                                color="#ef4444"
-                              />
-                            </TouchableOpacity>
-                          </View>
-                        )
-                      )}
-
-                      <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => handleApiItem("data", "add", null)}
-                      >
-                        <Feather name="plus" size={16} color="#3b82f6" />
-                        <Text style={styles.addButtonText}>
-                          데이터 API 추가
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                    <ApiSection
+                      title="데이터 관련 API"
+                      apis={formData.apiDesign?.data || []}
+                      onAdd={() => handleApiItem("data", "add", null)}
+                      onUpdate={(index, field, value) => handleApiItem("data", "update", index, field, value)}
+                      onRemove={(index) => handleApiItem("data", "remove", index)}
+                    />
+                  </FormSection>
 
                   {/* 스크린샷 섹션 */}
-                  <View style={styles.formSection}>
-                    <Text style={styles.sectionTitle}>스크린샷</Text>
-
-                    {formData.screenshots.map(
-                      (screenshot: Screenshot, index: number) => (
-                        <View
-                          key={`screenshot-${index}`}
-                          style={styles.screenshotItem}
-                        >
-                          <View style={styles.fieldContainer}>
-                            <Text style={styles.fieldLabel}>이미지 URL</Text>
-                            <FocusableTextInput
-                              value={screenshot.image || ""}
-                              onChangeText={(text) =>
-                                handleScreenshotItem(
-                                  "update",
-                                  index,
-                                  "image",
-                                  text
-                                )
-                              }
-                              placeholder="이미지 URL 입력"
-                            />
-                          </View>
-
-                          <View style={styles.fieldContainer}>
-                            <Text style={styles.fieldLabel}>설명</Text>
-                            <FocusableTextInput
-                              value={screenshot.description || ""}
-                              onChangeText={(text) =>
-                                handleScreenshotItem(
-                                  "update",
-                                  index,
-                                  "description",
-                                  text
-                                )
-                              }
-                              placeholder="스크린샷 설명"
-                            />
-                          </View>
-
-                          <TouchableOpacity
-                            style={styles.removeButton}
-                            onPress={() =>
-                              handleScreenshotItem("remove", index)
-                            }
-                          >
-                            <Feather name="trash-2" size={16} color="#ef4444" />
-                          </TouchableOpacity>
-                        </View>
-                      )
-                    )}
+                  <FormSection title="스크린샷">
+                    {(formData.screenshots || []).map((screenshot: Screenshot, index: number) => (
+                      <ScreenshotFormItem
+                        key={`screenshot-${index}`}
+                        screenshot={screenshot}
+                        index={index}
+                        onUpdate={(field, value) => handleScreenshotItem("update", index, field, value)}
+                        onDelete={() => handleScreenshotItem("remove", index)}
+                        onImageChange={(url) => handleScreenshotImageChange(index, url)}
+                      />
+                    ))}
 
                     <TouchableOpacity
                       style={styles.addButton}
@@ -954,25 +537,14 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                       <Feather name="plus" size={16} color="#3b82f6" />
                       <Text style={styles.addButtonText}>스크린샷 추가</Text>
                     </TouchableOpacity>
-                  </View>
+                  </FormSection>
 
-                  <View style={styles.formActions}>
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={onClose}
-                    >
-                      <Text style={styles.cancelButtonText}>취소</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.submitButton}
-                      onPress={handleSubmit}
-                    >
-                      <Text style={styles.submitButtonText}>
-                        {"id" in project ? "수정 완료" : "추가하기"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  <FormActions
+                    onCancel={onClose}
+                    onSubmit={handleSubmit}
+                    submitLabel={"id" in project ? "수정 완료" : "추가하기"}
+                    isSubmitDisabled={uploadingImages}
+                  />
                 </ScrollView>
               </KeyboardAvoidingView>
             </View>
@@ -1028,45 +600,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  formSection: {
-    marginBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
-    paddingBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1f2937",
-    marginBottom: 16,
-  },
-  subSectionTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#374151",
-    marginBottom: 12,
-  },
-  fieldContainer: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#4b5563",
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: "#fff",
-  },
-  webInput: {
-    outlineStyle: "solid",
-    cursor: "text",
-  },
   textArea: {
     minHeight: 80,
     textAlignVertical: "top",
@@ -1080,57 +613,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  apiSection: {
-    marginBottom: 20,
-  },
-  apiItem: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    position: "relative",
-  },
-  apiMethodContainer: {
-    marginBottom: 12,
-  },
-  apiMethodButtons: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 4,
-  },
-  apiMethodButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 4,
-    backgroundColor: "#f3f4f6",
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  apiMethodButtonActive: {
-    backgroundColor: "#3b82f6",
-  },
-  apiMethodButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#4b5563",
-  },
-  apiMethodButtonTextActive: {
-    color: "white",
-  },
-  screenshotItem: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    position: "relative",
-  },
-  removeButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    padding: 8,
-    zIndex: 5,
-  },
   addButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1141,38 +623,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#3b82f6",
     fontWeight: "500",
-  },
-  formActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-  },
-  cancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#4b5563",
-  },
-  submitButton: {
-    backgroundColor: "#3b82f6",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  submitButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "white",
   },
 });
 

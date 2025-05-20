@@ -1,9 +1,10 @@
+// types/index.ts 수정
 // 프로필 타입
 export interface Profile {
-  profileImage: any;
   name: string;
   title: string;
   bio: string;
+  profileImage?: string; // 선택적 필드로 변경
   skills: string[];
   links: {
     github: string;
@@ -90,6 +91,13 @@ export interface AuthContextType {
   error: string;
 }
 
+// 이미지 관련 타입
+export interface ImageUploadResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
+
 // 기본 프로필
 export const DEFAULT_PROFILE: Profile = {
   name: '홍길동',
@@ -100,8 +108,7 @@ export const DEFAULT_PROFILE: Profile = {
     github: '#',
     blog: '#',
     email: 'email@example.com'
-  },
-  profileImage: undefined
+  }
 };
 
 // 기본 프로젝트 템플릿
@@ -131,5 +138,9 @@ export const EMPTY_PROJECT: Omit<Project, 'id'> = {
     auth: [],
     data: []
   },
-  screenshots: []
+  screenshots: [],
+  architecture: {
+    image: '',
+    description: ''
+  }
 };
