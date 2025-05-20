@@ -11,7 +11,8 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ViewStyle,
-  TextStyle
+  TextStyle,
+  Pressable
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
@@ -43,19 +44,6 @@ const LoginModal: React.FC<LoginModalProps> = memo(({
   const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
 
-  // 모달 외부 클릭 처리
-  const handleOverlayPress = useCallback((e: { stopPropagation: () => void; }) => {
-    // 이벤트 처리를 여기서 멈춰 내부 컴포넌트로 전파되지 않도록
-    e.stopPropagation();
-    Keyboard.dismiss();
-  }, []);
-
-  // 모달 내부 클릭 처리
-  const handleModalPress = useCallback((e: { stopPropagation: () => void; }) => {
-    // 이벤트 버블링 방지
-    e.stopPropagation();
-  }, []);
-
   // 이메일 입력 처리
   const handleEmailChange = useCallback((text: string) => {
     setEmail(text);
@@ -74,6 +62,85 @@ const LoginModal: React.FC<LoginModalProps> = memo(({
   // 로그인 버튼 활성화 여부
   const isSubmitDisabled = !email.trim() || !password.trim();
 
+  // 모달 내용 렌더링 함수
+  const renderModalContent = () => (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.modalContentWrapper}
+    >
+      <View style={styles.modalContent}>
+        <View style={styles.header}>
+          <Text style={styles.title}>관리자 로그인</Text>
+          <TouchableOpacity 
+            onPress={onClose} 
+            style={styles.closeButton}
+            accessibilityLabel="닫기"
+          >
+            <Feather name="x" size={20} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.form}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>이메일</Text>
+            <Pressable 
+              style={styles.inputWrapper}
+              onPress={() => emailInputRef.current?.focus()}
+            >
+              <TextInput
+                ref={emailInputRef}
+                value={email}
+                onChangeText={handleEmailChange}
+                style={styles.input}
+                placeholder="이메일 주소 입력"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={handleEmailSubmit}
+                blurOnSubmit={false}
+                autoFocus={visible}
+              />
+            </Pressable>
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>비밀번호</Text>
+            <Pressable 
+              style={styles.inputWrapper}
+              onPress={() => passwordInputRef.current?.focus()}
+            >
+              <TextInput
+                ref={passwordInputRef}
+                value={password}
+                onChangeText={handlePasswordChange}
+                style={styles.input}
+                placeholder="비밀번호 입력"
+                secureTextEntry
+                returnKeyType="done"
+                onSubmitEditing={!isSubmitDisabled ? onSubmit : undefined}
+              />
+            </Pressable>
+          </View>
+          
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          
+          <TouchableOpacity
+            onPress={onSubmit}
+            style={[
+              styles.submitButton,
+              isSubmitDisabled && styles.disabledButton
+            ]}
+            disabled={isSubmitDisabled}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.submitButtonText}>로그인</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -81,75 +148,9 @@ const LoginModal: React.FC<LoginModalProps> = memo(({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={handleOverlayPress}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={handleModalPress}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={styles.modalContentWrapper}
-            >
-              <View style={styles.modalContent}>
-                <View style={styles.header}>
-                  <Text style={styles.title}>관리자 로그인</Text>
-                  <TouchableOpacity 
-                    onPress={onClose} 
-                    style={styles.closeButton}
-                    accessibilityLabel="닫기"
-                  >
-                    <Feather name="x" size={20} color="#6b7280" />
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={styles.form}>
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>이메일</Text>
-                    <TextInput
-                      ref={emailInputRef}
-                      value={email}
-                      onChangeText={handleEmailChange}
-                      style={[styles.input, Platform.OS === 'web' && styles.webInput]}
-                      placeholder="이메일 주소 입력"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      returnKeyType="next"
-                      onSubmitEditing={handleEmailSubmit}
-                      blurOnSubmit={false}
-                      autoFocus={visible}
-                    />
-                  </View>
-                  
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>비밀번호</Text>
-                    <TextInput
-                      ref={passwordInputRef}
-                      value={password}
-                      onChangeText={handlePasswordChange}
-                      style={[styles.input, Platform.OS === 'web' && styles.webInput]}
-                      placeholder="비밀번호 입력"
-                      secureTextEntry
-                      returnKeyType="done"
-                      onSubmitEditing={!isSubmitDisabled ? onSubmit : undefined}
-                    />
-                  </View>
-                  
-                  {error ? <Text style={styles.errorText}>{error}</Text> : null}
-                  
-                  <TouchableOpacity
-                    onPress={onSubmit}
-                    style={[
-                      styles.submitButton,
-                      isSubmitDisabled && styles.disabledButton
-                    ]}
-                    disabled={isSubmitDisabled}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.submitButtonText}>로그인</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
+          {renderModalContent()}
         </View>
       </TouchableWithoutFeedback>
     </Modal>
@@ -203,18 +204,18 @@ const styles = StyleSheet.create({
     color: '#4b5563',
     marginBottom: 6,
   } as TextStyle,
-  input: {
+  inputWrapper: {
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 6,
+    backgroundColor: 'white',
+  } as ViewStyle,
+  input: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
+    ...(Platform.OS === 'web' ? { outline: 'none' } : {}),
   } as TextStyle,
-  webInput: {
-    outlineStyle: 'none',
-    cursor: 'text',
-  } as unknown as TextStyle,
   errorText: {
     color: '#ef4444',
     fontSize: 14,

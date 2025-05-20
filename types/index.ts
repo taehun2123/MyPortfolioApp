@@ -1,5 +1,6 @@
 // 프로필 타입
 export interface Profile {
+  profileImage: any;
   name: string;
   title: string;
   bio: string;
@@ -99,7 +100,8 @@ export const DEFAULT_PROFILE: Profile = {
     github: '#',
     blog: '#',
     email: 'email@example.com'
-  }
+  },
+  profileImage: undefined
 };
 
 // 기본 프로젝트 템플릿

@@ -4,12 +4,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Animated,
   Dimensions,
+  ScrollView,
+  FlatList,
+  PanResponder
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import Swiper from "react-native-swiper";
 import ProjectView from "./ProjectView";
 import ProjectFormModal from "../admin/ProjectFormModal";
 import LoadingIndicator from "../common/LoadingIndicator";
@@ -31,11 +32,12 @@ const PortfolioSection: React.FC<PortfolioSectionProps> = ({ isAdmin, onBackToPr
   const [showProjectForm, setShowProjectForm] = useState<boolean>(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
-  const flatListRef = useRef<FlatList>(null);
-  const dotPosition = useRef(new Animated.Value(0)).current;
-
   // 화면 크기
   const { width: screenWidth } = Dimensions.get("window");
+  
+  // 스크롤 관련 값
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // 활성 프로젝트 인덱스가 범위를 벗어나지 않도록 조정
   useEffect(() => {
@@ -44,32 +46,33 @@ const PortfolioSection: React.FC<PortfolioSectionProps> = ({ isAdmin, onBackToPr
     }
   }, [projects, activeProject]);
 
-  // 프로젝트 변경시 애니메이션 처리
+  // activeProject 변경 시 해당 위치로 스크롤
   useEffect(() => {
-    Animated.spring(dotPosition, {
-      toValue: activeProject * 16, // 인디케이터 간격 (dot size + margin)
-      useNativeDriver: true,
-      friction: 8,
-    }).start();
-
-    // FlatList 스크롤
-    flatListRef.current?.scrollToIndex({
-      index: activeProject,
-      animated: true,
-    });
-  }, [activeProject, dotPosition]);
+    if (scrollViewRef.current && projects.length > 0) {
+      scrollViewRef.current.scrollTo({
+        x: activeProject * screenWidth,
+        animated: true
+      });
+    }
+  }, [activeProject, screenWidth]);
 
   // 스크롤 이벤트 처리
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: dotPosition } } }],
-    { useNativeDriver: false }
-  );
+  const handleScroll = (e: { nativeEvent: { contentOffset: any; layoutMeasurement: any; }; }) => {
+    const { contentOffset, layoutMeasurement } = e.nativeEvent;
+    const pageNum = Math.round(contentOffset.x / layoutMeasurement.width);
+    if (pageNum !== activeProject) {
+      setActiveProject(pageNum);
+    }
+  };
+  
 
-  // 스크롤 종료 이벤트 처리
+  // 스크롤 종료 시 페이지 설정
   const handleScrollEnd = (e: any) => {
     const { contentOffset, layoutMeasurement } = e.nativeEvent;
     const pageNum = Math.floor(contentOffset.x / layoutMeasurement.width);
-    setActiveProject(pageNum);
+    if (pageNum !== activeProject) {
+      setActiveProject(pageNum);
+    }
   };
 
   // 프로젝트 추가 핸들러
@@ -107,6 +110,38 @@ const PortfolioSection: React.FC<PortfolioSectionProps> = ({ isAdmin, onBackToPr
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
     setShowProjectForm(true);
+  };
+
+  // 다음 프로젝트로 이동
+  const goToNextProject = () => {
+    if (activeProject < projects.length - 1) {
+      setActiveProject(activeProject + 1);
+    }
+  };
+
+  // 이전 프로젝트로 이동
+  const goToPrevProject = () => {
+    if (activeProject > 0) {
+      setActiveProject(activeProject - 1);
+    }
+  };
+
+  // 페이지 인디케이터 렌더링
+  const renderPagination = () => {
+    return (
+      <View style={styles.paginationStyle}>
+        {projects.map((_, index) => (
+          <TouchableOpacity
+            key={index}
+            style={[
+              styles.dot,
+              activeProject === index && styles.activeDot
+            ]}
+            onPress={() => setActiveProject(index)}
+          />
+        ))}
+      </View>
+    );
   };
 
   if (isLoading) {
@@ -153,6 +188,7 @@ const PortfolioSection: React.FC<PortfolioSectionProps> = ({ isAdmin, onBackToPr
         <Feather name="chevron-left" size={24} color="#3b82f6" />
         <Text style={styles.backButtonText}>프로필</Text>
       </TouchableOpacity>
+      
       {/* 프로젝트 폼 모달 */}
       {showProjectForm && (
         <ProjectFormModal
@@ -172,42 +208,31 @@ const PortfolioSection: React.FC<PortfolioSectionProps> = ({ isAdmin, onBackToPr
         />
       )}
 
-      {/* 프로젝트 슬라이더 */}
-      {projects.length > 0 ? (
-        <Swiper
-          style={styles.swiper}
-          showsButtons={false}
-          loop={false}
-          index={activeProject}
-          onIndexChanged={setActiveProject}
-          dot={<View style={styles.dot} />}
-          activeDot={<View style={styles.activeDot} />}
-          paginationStyle={styles.paginationStyle}
-        >
-          {projects.map((project) => (
-            <View key={project.id} style={styles.slide}>
-              <ProjectView
-                project={project}
-                isAdmin={isAdmin}
-                onEdit={() => handleEditProject(project)}
-                onDelete={() => handleDeleteProject(project.id)}
-              />
-            </View>
-          ))}
-        </Swiper>
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>등록된 프로젝트가 없습니다.</Text>
-          {isAdmin && (
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => setShowProjectForm(true)}
-            >
-              <Text style={styles.addButtonText}>프로젝트 추가</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
+      {/* 프로젝트 슬라이더 - CSS 스와이퍼 스타일 구현 */}
+      <Animated.ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={handleScrollEnd}
+        style={styles.scrollContainer}
+      >
+        {projects.map((project) => (
+          <View key={project.id} style={[styles.slide, { width: screenWidth }]}>
+            <ProjectView
+              project={project}
+              isAdmin={isAdmin}
+              onEdit={() => handleEditProject(project)}
+              onDelete={() => handleDeleteProject(project.id)}
+            />
+          </View>
+        ))}
+      </Animated.ScrollView>
+
+      {/* 페이지 인디케이터 */}
+      {renderPagination()}
 
       {/* 관리자일 경우 프로젝트 추가 버튼 - 하단에 고정 */}
       {isAdmin && projects.length > 0 && (
@@ -230,30 +255,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "white",
   },
-  swiper: {
+  scrollContainer: {
     flex: 1,
   },
   slide: {
     flex: 1,
+  },
+  paginationStyle: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 70, // 내비게이션 버튼 위쪽 공간 확보
+    left: 0,
+    right: 0,
   },
   dot: {
     backgroundColor: "#d1d5db",
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginLeft: 3,
-    marginRight: 3,
+    marginHorizontal: 3,
   },
   activeDot: {
     backgroundColor: "#3b82f6",
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: 3,
-    marginRight: 3,
-  },
-  paginationStyle: {
-    bottom: 20,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   floatingAddButton: {
     position: "absolute",
@@ -294,71 +322,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  Slide: {
-    flex: 1,
-  },
-  indicatorContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 16,
-  },
-  dotsContainer: {
-    flexDirection: "row",
-    position: "relative",
-    height: 12,
-  },
-  Dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#d1d5db",
-    marginHorizontal: 4,
-  },
-  ActiveDot: {
-    position: "absolute",
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#3b82f6",
-    marginHorizontal: 4,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  backButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#3b82f6',
-  },
-  addDotButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#3b82f6",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 12,
-  },
   navButtons: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingBottom: 24,
+    paddingBottom: 20,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   navButton: {
     width: 40,
@@ -381,6 +353,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#4b5563",
+  },
+  backButton: {
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#3b82f6',
   },
 });
 

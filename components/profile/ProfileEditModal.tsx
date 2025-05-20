@@ -1,4 +1,3 @@
-// components/profile/ProfileEditModal.tsx
 import React, { useState, useRef } from 'react';
 import { 
   Modal, 
@@ -75,6 +74,144 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     onSubmit(formData);
   };
   
+  // 모달 콘텐츠
+  const renderModalContent = () => (
+    <View style={styles.modalContainer}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>프로필 수정</Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Feather name="x" size={24} color="#4b5563" />
+        </TouchableOpacity>
+      </View>
+      
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>이름</Text>
+            <TextInput
+              value={formData.name}
+              onChangeText={(text) => handleChange('name', text)}
+              style={styles.input}
+              placeholder="이름을 입력하세요"
+            />
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>직함</Text>
+            <TextInput
+              value={formData.title}
+              onChangeText={(text) => handleChange('title', text)}
+              style={styles.input}
+              placeholder="직함을 입력하세요 (예: 프론트엔드 개발자)"
+            />
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>자기소개</Text>
+            <TextInput
+              value={formData.bio}
+              onChangeText={(text) => handleChange('bio', text)}
+              style={[styles.input, styles.textArea]}
+              placeholder="간단한 자기소개를 입력하세요"
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>프로필 사진 URL</Text>
+            <TextInput
+              value={formData.profileImage || ''}
+              onChangeText={(text) => handleChange('profileImage', text)}
+              style={styles.input}
+              placeholder="프로필 이미지 URL을 입력하세요"
+            />
+            
+            {formData.profileImage && (
+              <View style={styles.previewContainer}>
+                <Text style={styles.previewLabel}>미리보기</Text>
+                <Image 
+                  source={{ uri: formData.profileImage }}
+                  style={styles.imagePreview}
+                  onError={() => handleChange('profileImage', '')}
+                />
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>링크</Text>
+            <View style={styles.linkContainer}>
+              <Text style={styles.subLabel}>GitHub</Text>
+              <TextInput
+                value={formData.links.github}
+                onChangeText={(text) => handleLinkChange('github', text)}
+                style={styles.input}
+                placeholder="GitHub URL을 입력하세요"
+              />
+            </View>
+            
+            <View style={styles.linkContainer}>
+              <Text style={styles.subLabel}>블로그</Text>
+              <TextInput
+                value={formData.links.blog}
+                onChangeText={(text) => handleLinkChange('blog', text)}
+                style={styles.input}
+                placeholder="블로그 URL을 입력하세요"
+              />
+            </View>
+            
+            <View style={styles.linkContainer}>
+              <Text style={styles.subLabel}>이메일</Text>
+              <TextInput
+                value={formData.links.email}
+                onChangeText={(text) => handleLinkChange('email', text)}
+                style={styles.input}
+                placeholder="이메일 주소를 입력하세요"
+                keyboardType="email-address"
+              />
+            </View>
+          </View>
+          
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>기술 스택</Text>
+            <ArrayFieldInput
+              label=""
+              items={formData.skills}
+              onAdd={(value) => handleSkillsChange('add', undefined, value)}
+              onUpdate={(index, value) => handleSkillsChange('update', index, value)}
+              onRemove={(index) => handleSkillsChange('remove', index)}
+              placeholder="기술 스택을 입력하세요 (예: React)"
+            />
+          </View>
+          
+          <View style={styles.actionButtons}>
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={onClose}
+            >
+              <Text style={styles.cancelButtonText}>취소</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.submitButton}
+              onPress={handleSubmit}
+            >
+              <Text style={styles.submitButtonText}>저장</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  )
+  
   return (
     <Modal
       visible={visible}
@@ -82,144 +219,9 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={() => {
-        Keyboard.dismiss();
-      }}>
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>프로필 수정</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Feather name="x" size={24} color="#4b5563" />
-              </TouchableOpacity>
-            </View>
-            
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              style={{ flex: 1 }}
-            >
-              <ScrollView 
-                style={styles.scrollContainer}
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-              >
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>이름</Text>
-                  <TextInput
-                    value={formData.name}
-                    onChangeText={(text) => handleChange('name', text)}
-                    style={styles.input}
-                    placeholder="이름을 입력하세요"
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>직함</Text>
-                  <TextInput
-                    value={formData.title}
-                    onChangeText={(text) => handleChange('title', text)}
-                    style={styles.input}
-                    placeholder="직함을 입력하세요 (예: 프론트엔드 개발자)"
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>자기소개</Text>
-                  <TextInput
-                    value={formData.bio}
-                    onChangeText={(text) => handleChange('bio', text)}
-                    style={[styles.input, styles.textArea]}
-                    placeholder="간단한 자기소개를 입력하세요"
-                    multiline
-                    numberOfLines={4}
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>프로필 사진 URL</Text>
-                  <TextInput
-                    value={formData.profileImage || ''}
-                    onChangeText={(text) => handleChange('profileImage', text)}
-                    style={styles.input}
-                    placeholder="프로필 이미지 URL을 입력하세요"
-                  />
-                  
-                  {formData.profileImage && (
-                    <View style={styles.previewContainer}>
-                      <Text style={styles.previewLabel}>미리보기</Text>
-                      <Image 
-                        source={{ uri: formData.profileImage }}
-                        style={styles.imagePreview}
-                        onError={() => handleChange('profileImage', '')}
-                      />
-                    </View>
-                  )}
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>링크</Text>
-                  <View style={styles.linkContainer}>
-                    <Text style={styles.subLabel}>GitHub</Text>
-                    <TextInput
-                      value={formData.links.github}
-                      onChangeText={(text) => handleLinkChange('github', text)}
-                      style={styles.input}
-                      placeholder="GitHub URL을 입력하세요"
-                    />
-                  </View>
-                  
-                  <View style={styles.linkContainer}>
-                    <Text style={styles.subLabel}>블로그</Text>
-                    <TextInput
-                      value={formData.links.blog}
-                      onChangeText={(text) => handleLinkChange('blog', text)}
-                      style={styles.input}
-                      placeholder="블로그 URL을 입력하세요"
-                    />
-                  </View>
-                  
-                  <View style={styles.linkContainer}>
-                    <Text style={styles.subLabel}>이메일</Text>
-                    <TextInput
-                      value={formData.links.email}
-                      onChangeText={(text) => handleLinkChange('email', text)}
-                      style={styles.input}
-                      placeholder="이메일 주소를 입력하세요"
-                      keyboardType="email-address"
-                    />
-                  </View>
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>기술 스택</Text>
-                  <ArrayFieldInput
-                    label=""
-                    items={formData.skills}
-                    onAdd={(value) => handleSkillsChange('add', undefined, value)}
-                    onUpdate={(index, value) => handleSkillsChange('update', index, value)}
-                    onRemove={(index) => handleSkillsChange('remove', index)}
-                    placeholder="기술 스택을 입력하세요 (예: React)"
-                  />
-                </View>
-                
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity 
-                    style={styles.cancelButton}
-                    onPress={onClose}
-                  >
-                    <Text style={styles.cancelButtonText}>취소</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.submitButton}
-                    onPress={handleSubmit}
-                  >
-                    <Text style={styles.submitButtonText}>저장</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </KeyboardAvoidingView>
-          </View>
+          {renderModalContent()}
         </View>
       </TouchableWithoutFeedback>
     </Modal>
@@ -289,7 +291,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: '#fff',
-    ...(Platform.OS === 'web' ? { outlineStyle: 'solid' } : {}),
+    ...(Platform.OS === 'web' ? { outline: 'none' } : {}),
   },
   textArea: {
     minHeight: 100,
