@@ -1,21 +1,20 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  Image, 
-  ScrollView, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Dimensions 
-} from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import ProjectTabButton from './ProjectTabButton';
-import SummaryTab from '../tabs/SummaryTab'; // Verify the file exists or correct the path
-import ContributionTab from '../tabs/ContributionTab'; // Ensure this file exists or correct the path
-import ArchitectureTab from '../tabs/ArchitectureTab';
-import ApiTab from '../tabs/ApiTab';
-import ScreenshotsTab from '../tabs/ScreenshotsTab';
+import React, { useState } from 'react';
+import {
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import { Project } from '../../types';
+import ApiTab from '../tabs/ApiTab';
+import ArchitectureTab from '../tabs/ArchitectureTab';
+import ContributionTab from '../tabs/ContributionTab'; // Ensure this file exists or correct the path
+import ScreenshotsTab from '../tabs/ScreenshotsTab';
+import SummaryTab from '../tabs/SummaryTab'; // Verify the file exists or correct the path
+import ProjectTabButton from './ProjectTabButton';
 
 interface ProjectViewProps {
   project: Project;
@@ -71,14 +70,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({
         
         <Text style={styles.description}>{project.description}</Text>
         
-        {/* 프로젝트 이미지 */}
-        <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: 'https://via.placeholder.com/600x400' }} // 실제 이미지로 교체 필요
-            style={[styles.image, { width: imageWidth, height: imageHeight }]}
-            resizeMode="cover"
-          />
-        </View>
       </View>
       
       {/* 탭 네비게이션 */}

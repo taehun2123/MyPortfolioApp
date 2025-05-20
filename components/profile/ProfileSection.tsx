@@ -1,21 +1,21 @@
 // components/portfolio/ProfileSection.tsx (수정)
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  Animated, 
-  Dimensions 
-} from 'react-native';
+import { Profile } from '@/types';
+import { getAnimationConfig } from '@/utils/styleUtils';
 import { Feather } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import {
+  Animated,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { useProfile } from '../../hooks/useProfile';
+import LoadingIndicator from '../common/LoadingIndicator';
+import ProfileEditModal from '../profile/ProfileEditModal';
 import ProfileLink from '../profile/ProfileLink';
 import ImageWithFallback from '../shared/ImageWithFallback';
-import { useProfile } from '../../hooks/useProfile';
-import ProfileEditModal from '../profile/ProfileEditModal';
-import { Profile } from '@/types';
-import LoadingIndicator from '../common/LoadingIndicator';
 
 interface ProfileSectionProps {
   onNext: () => void;
@@ -34,23 +34,24 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [bounceAnimation] = useState(new Animated.Value(0));
   
-  // 애니메이션 설정
+  // 애니메이션 설정 - useNativeDriver 문제 해결
   React.useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(bounceAnimation, {
           toValue: 1,
           duration: 800,
-          useNativeDriver: true,
+          ...getAnimationConfig() // 플랫폼에 맞는 애니메이션 설정
         }),
         Animated.timing(bounceAnimation, {
           toValue: 0,
           duration: 800,
-          useNativeDriver: true,
+          ...getAnimationConfig() // 플랫폼에 맞는 애니메이션 설정
         }),
       ])
     ).start();
   }, [bounceAnimation]);
+
   
   const bounceInterpolation = bounceAnimation.interpolate({
     inputRange: [0, 1],
@@ -115,7 +116,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
           <View style={styles.avatarContainer}>
             <View style={styles.avatarBorder}>
               <ImageWithFallback 
-                source={profile.profileImage ? { uri: profile.profileImage } : require('../../assets/profile-placeholder.png')}
+                source={profile.profileImage ? { uri: profile.profileImage } : undefined}
                 style={styles.avatar}
                 fallbackText="프로필 이미지"
               />
@@ -126,7 +127,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
             <Text style={styles.name}>{profile.name || '홍길동'}</Text>
             <Text style={styles.title}>{profile.title || '프론트엔드 개발자'}</Text>
             <Text style={styles.bio}>
-              {profile.bio || '개발 경험이 풍부한 프론트엔드 개발자입니다.'}
+              {profile.bio || '개발 경험이 풍부한 개발자입니다.'}
             </Text>
             
             <View style={styles.linksContainer}>

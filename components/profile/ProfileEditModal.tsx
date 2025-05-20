@@ -370,11 +370,17 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     backgroundColor: 'white',
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    // shadow* 속성을 boxShadow로 대체
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.25)'
+    } : {
+      // 네이티브 환경에서는 기존 shadow 속성 유지
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    }),
   },
   header: {
     flexDirection: 'row',
@@ -421,7 +427,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
     ...Platform.select({
-      web: { outlineStyle: 'solid', cursor: 'text' }, // Adjusted for compatibility
+      web: { 
+        // outline 속성 수정
+        outlineWidth: 0,
+        outlineStyle: 'solid',
+        cursor: 'text' 
+      },
     }),
   },
   textArea: {

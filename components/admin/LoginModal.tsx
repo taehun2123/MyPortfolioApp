@@ -1,20 +1,20 @@
-import React, { useState, useRef, useCallback, memo } from 'react';
-import { 
-  Modal, 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-  ViewStyle,
-  TextStyle,
-  Pressable
-} from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import React, { memo, useCallback, useRef } from 'react';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+  ViewStyle
+} from 'react-native';
 
 interface LoginModalProps {
   email: string;
@@ -214,7 +214,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    ...(Platform.OS === 'web' ? { outline: 'none' } : {}),
+    ...(Platform.OS === 'web' ? { 
+      // outline 속성 수정
+      outlineWidth: 0,
+      outlineStyle: 'none'
+    } : {}),
   } as TextStyle,
   errorText: {
     color: '#ef4444',

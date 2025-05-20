@@ -1,16 +1,16 @@
-import React, { useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  KeyboardAvoidingView, 
-  Platform,
-  Pressable
-} from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import React, { useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 interface ArrayFieldInputProps {
   label: string;
@@ -57,7 +57,7 @@ const ArrayFieldInput: React.FC<ArrayFieldInputProps> = ({
           <View key={index} style={styles.itemRow}>
             <Pressable style={styles.inputWrapper} onPress={() => {
               if (inputRefs.current[index]) {
-                inputRefs.current[index].focus();
+                inputRefs.current[index]?.focus();
               }
             }}>
               <TextInput
@@ -150,7 +150,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 14,
     backgroundColor: 'transparent',
-    ...(Platform.OS === 'web' ? { outline: 'none' } : {}),
+    ...(Platform.OS === 'web' ? { 
+      // outline 속성 대신 웹 호환 속성 사용
+      outlineWidth: 0,  
+      outlineStyle: 'solid'
+    } : {}),
   },
   multilineInput: {
     minHeight: 64,

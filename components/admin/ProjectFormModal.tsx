@@ -42,49 +42,52 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
   onSubmit,
   onClose,
 }) => {
-  // 불완전한 프로젝트 객체를 완전하게 만들기
-  const initialProject = {
-    ...project, // 기존 프로젝트 데이터로 덮어쓰기
-    title: '',
-    techStack: {
-      fieldSkill: [],
-      server: [],
-      os: [],
-      collaboration: [],
-      tools: [],
-      db: []
-    },
-    contribution: {
-      intro: '',
-      period: '',
-      members: '',
-      keyFeatures: [],
-      teamAchievement: '',
-      role: {
-        summary: '',
-        details: []
+  // 초기화 함수 - 프로젝트 객체 구조 확인 및 기본값 설정
+  const initializeProject = useCallback((projectData: Project | Omit<Project, "id">) => {
+    return {
+      ...(projectData || {}),
+      title: projectData.title || '',
+      description: projectData.description || '',
+      techStack: {
+        fieldSkill: projectData.techStack?.fieldSkill || [],
+        server: projectData.techStack?.server || [],
+        os: projectData.techStack?.os || [],
+        collaboration: projectData.techStack?.collaboration || [],
+        tools: projectData.techStack?.tools || [],
+        db: projectData.techStack?.db || []
+      },
+      contribution: {
+        intro: projectData.contribution?.intro || '',
+        period: projectData.contribution?.period || '',
+        members: projectData.contribution?.members || '',
+        keyFeatures: projectData.contribution?.keyFeatures || [],
+        teamAchievement: projectData.contribution?.teamAchievement || '',
+        role: {
+          summary: projectData.contribution?.role?.summary || '',
+          details: projectData.contribution?.role?.details || []
+        }
+      },
+      apiDesign: {
+        auth: projectData.apiDesign?.auth || [],
+        data: projectData.apiDesign?.data || []
+      },
+      screenshots: projectData.screenshots || [],
+      architecture: {
+        image: projectData.architecture?.image || '',
+        description: projectData.architecture?.description || ''
       }
-    },
-    apiDesign: {
-      auth: [],
-      data: []
-    },
-    screenshots: [],
-    architecture: {
-      image: '',
-      description: ''
-    }
-  };
+    };
+  }, []);
 
-  const [formData, setFormData] = useState<any>(initialProject);
+  const [formData, setFormData] = useState<any>(initializeProject(project));
   const [uploadingImages, setUploadingImages] = useState<boolean>(false);
 
   // 모달이 열릴 때마다 폼 데이터 초기화
   useEffect(() => {
     if (visible) {
-      setFormData(initialProject);
+      setFormData(initializeProject(project));
     }
-  }, [visible, project]);
+  }, [visible, project, initializeProject]);
 
   // 모달 내부 클릭 처리
   const handleModalPress = useCallback((e: { stopPropagation: () => void; }) => {
@@ -276,8 +279,8 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
 
   // 아키텍처 이미지 변경 핸들러
   const handleArchitectureImageChange = useCallback((url: string) => {
-    handleNestedChange("architecture", "image", "", url);
-  }, [handleNestedChange]);
+    handleChange("architecture", "image", url);
+  }, [handleChange]);
 
   // 스크린샷 이미지 변경 핸들러
   const handleScreenshotImageChange = useCallback((index: number, url: string) => {
@@ -290,8 +293,14 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
       Alert.alert('이미지 업로드 중', '이미지 업로드가 완료될 때까지 기다려주세요.');
       return;
     }
-    onSubmit(formData);
-  }, [formData, onSubmit, uploadingImages]);
+    
+    // ID가 있으면 해당 ID 보존
+    const finalFormData = "id" in project ? { ...formData, id: project.id } : formData;
+    onSubmit(finalFormData);
+  }, [formData, onSubmit, uploadingImages, project]);
+
+  // 콘솔에 로그 출력 (디버깅용)
+  console.log('[ProjectFormModal] Rendering with formData:', formData);
 
   return (
     <Modal
@@ -490,7 +499,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                     <FormField label="설명">
                       <FocusableTextInput
                         value={formData.architecture?.description || ''}
-                        onChangeText={(text) => handleNestedChange("architecture", "description", "", text)}
+                        onChangeText={(text) => handleChange("architecture", "description", text)}
                         placeholder="아키텍처 설명 입력"
                         multiline
                         style={styles.textArea}
